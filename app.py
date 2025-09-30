@@ -56,4 +56,4 @@ if uploaded_file:
     btn_anime.click(fn=to_anime_full, inputs=input_img, outputs=output_img)
     btn_sketch.click(fn=to_sketch, inputs=input_img, outputs=output_img)
 
-demo.launch()
+
