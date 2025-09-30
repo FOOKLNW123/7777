@@ -1,6 +1,6 @@
 streamlit
 torch
+opencv-python==4.8.0.76
 Pillow
 numpy
-opencv-python==4.8.0.76
 
