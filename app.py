@@ -1,59 +1,55 @@
-
-import torch
-
-from PIL import Image
-import numpy as np
-
-# โหลดโมเดล AnimeGANv2 (สไตล์ face_paint_512_v2)
-anime_model = torch.hub.load('bryandlee/animegan2-pytorch', 'generator', pretrained='face_paint_512_v2')
-anime_model.eval()
-
-# ฟังก์ชัน sharpen ภาพ
-def sharpen(img: Image.Image) -> Image.Image:
-    img_np = np.array(img)
-    kernel = np.array([[0, -1, 0], [-1, 5,-1], [0, -1, 0]])
-    sharpened = cv2.filter2D(img_np, -1, kernel)
-    return Image.fromarray(sharpened)
-
-# ฟังก์ชันแปลงภาพทั้งภาพเป็นอนิเมะ
-def to_anime_full(img: Image.Image) -> Image.Image:
-    original_size = img.size
-    transform = transforms.Compose([
-        transforms.Resize((512, 512)),
-        transforms.ToTensor(),
-        transforms.Normalize([0.5]*3, [0.5]*3)
-    ])
-    input_tensor = transform(img).unsqueeze(0)
-    with torch.no_grad():
-        output_tensor = anime_model(input_tensor)[0]
-    output_tensor = (output_tensor * 0.5 + 0.5).clamp(0, 1)
-    output_img = transforms.ToPILImage()(output_tensor)
-    return sharpen(output_img.resize(original_size))
-
-# ฟังก์ชันแปลงภาพเป็นสเก็ต
-def to_sketch(img: Image.Image) -> Image.Image:
-    img_gray = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2GRAY)
-    inv_img = 255 - img_gray
-    blur_img = cv2.GaussianBlur(inv_img, (21, 21), sigmaX=0, sigmaY=0)
-    sketch = cv2.divide(img_gray, 255 - blur_img, scale=256)
-    return Image.fromarray(sketch)
-
-# สร้าง UI ด้วย Gradio
-
 import streamlit as st
 from PIL import Image
+import torch
+import numpy as np
+import cv2
 
-st.title("WebEase: แปลงภาพเป็นอนิเมะและสเก็ตช์")
+# โหลดโมเดล AnimeGANv2
+@st.cache_resource
+def load_model():
+    model = torch.hub.load(
+        "bryandlee/animegan2-pytorch:main",
+        "generator",
+        pretrained="face_paint_512_v2",
+        device="cpu"
+    )
+    model.eval()
+    return model
 
-uploaded_file = st.file_uploader("อัปโหลดภาพ", type=["jpg", "png"])
+model = load_model()
+
+# ฟังก์ชันแปลงภาพเป็นอนิเมะ
+def to_anime_full(img):
+    img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+    img = cv2.resize(img, (512, 512))
+    img = torch.from_numpy(img).permute(2, 0, 1).unsqueeze(0).float() / 255.0
+    with torch.no_grad():
+        out = model(img)[0]
+    out = (out.permute(1, 2, 0).numpy() * 255).astype(np.uint8)
+    return Image.fromarray(cv2.cvtColor(out, cv2.COLOR_BGR2RGB))
+
+# ฟังก์ชันแปลงภาพเป็นสเก็ตช์
+def to_sketch(img):
+    gray = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2GRAY)
+    inv = 255 - gray
+    blur = cv2.GaussianBlur(inv, (21, 21), 0)
+    sketch = cv2.divide(gray, 255 - blur, scale=256)
+    return Image.fromarray(sketch)
+
+# UI
+st.title("🎨 WebEase: แปลงภาพเป็นอนิเมะและสเก็ตช์")
+
+uploaded_file = st.file_uploader("📤 อัปโหลดภาพ", type=["jpg", "png"])
+style = st.radio("เลือกสไตล์ที่ต้องการ", ["Anime", "Sketch"])
+
 if uploaded_file:
-    image = Image.open(uploaded_file)
-    st.image(image, caption="ภาพต้นฉบับ", use_column_width=True)
+    input_img = Image.open(uploaded_file)
+    st.image(input_img, caption="ภาพต้นฉบับ", use_column_width=True)
 
-    # ใส่โค้ดแปลงภาพที่นี่
+    if st.button("แปลงภาพ"):
+        if style == "Anime":
+            output_img = to_anime_full(input_img)
+        else:
+            output_img = to_sketch(input_img)
 
-
-    btn_anime.click(fn=to_anime_full, inputs=input_img, outputs=output_img)
-    btn_sketch.click(fn=to_sketch, inputs=input_img, outputs=output_img)
-
-
+        st.image(output_img, caption="ภาพที่แปลงแล้ว", use_column_width=True)
