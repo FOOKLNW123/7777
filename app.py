@@ -2,7 +2,6 @@
 import torch
 
 from PIL import Image
-import cv2
 import numpy as np
 
 # โหลดโมเดล AnimeGANv2 (สไตล์ face_paint_512_v2)
