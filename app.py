@@ -1,4 +1,4 @@
-import gradio as gr
+
 import torch
 from torchvision import transforms
 from PIL import Image
@@ -40,15 +40,19 @@ def to_sketch(img: Image.Image) -> Image.Image:
     return Image.fromarray(sketch)
 
 # สร้าง UI ด้วย Gradio
-with gr.Blocks() as demo:
-    gr.Markdown("## 🎨 ระบบ AI แปลงภาพจริงเป็นภาพอนิเมะและสเก็ต (ทั้งภาพ)")
-    with gr.Row():
-        with gr.Column():
-            input_img = gr.Image(type="pil", label="📤 อัปโหลดภาพจริง")
-            btn_anime = gr.Button("✨ แปลงเป็นภาพอนิเมะ (ทั้งภาพ)")
-            btn_sketch = gr.Button("🖊️ แปลงเป็นภาพสเก็ต")
-        with gr.Column():
-            output_img = gr.Image(label="📥 ผลลัพธ์ที่แปลงแล้ว")
+
+import streamlit as st
+from PIL import Image
+
+st.title("WebEase: แปลงภาพเป็นอนิเมะและสเก็ตช์")
+
+uploaded_file = st.file_uploader("อัปโหลดภาพ", type=["jpg", "png"])
+if uploaded_file:
+    image = Image.open(uploaded_file)
+    st.image(image, caption="ภาพต้นฉบับ", use_column_width=True)
+
+    # ใส่โค้ดแปลงภาพที่นี่
+
 
     btn_anime.click(fn=to_anime_full, inputs=input_img, outputs=output_img)
     btn_sketch.click(fn=to_sketch, inputs=input_img, outputs=output_img)
